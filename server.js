@@ -67,6 +67,7 @@ function lines(game, items) {
     spreadCount: bookLines.filter(b => b.spread !== null).length,
     totalCount: bookLines.filter(b => b.total !== null).length };
 }
+const clientScript = "\nconst seasonSelect=document.getElementById('season'),weekSelect=document.getElementById('week');\nfor(let y=2024;y<=2028;y++) seasonSelect.add(new Option(y,y));\nfor(let w=1;w<=18;w++) weekSelect.add(new Option('Week '+w,w));\nseasonSelect.value='2026';weekSelect.value='12';\nfunction fmtSpread(v,team){if(v===null)return '—';return team+' '+(v>0?'+':'')+v.toFixed(1)}\nfunction fmtTotal(v){return v===null?'—':v.toFixed(1)}\nfunction safe(s){return String(s).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]))}\nasync function load(){\n document.getElementById('notice').textContent='Loading NFL games and odds…';\n try{\n  const r=await fetch('/api/games?season='+seasonSelect.value+'&week='+weekSelect.value);\n  const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to load games');\n  document.getElementById('gameCount').textContent=d.games.length;\n  document.getElementById('updated').textContent=d.asOf?new Date(d.asOf).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'Not linked';\n  document.getElementById('notice').textContent=!d.configured?'Schedule is live. Add ODDS_API_KEY in Render to enable sportsbook lines.':d.oddsError?d.oddsError:'Odds are snapshots and may be unavailable for completed or distant games.';\n  document.getElementById('games').innerHTML=d.games.map((g,i)=>`<div class=\"row game\" data-index=\"${i}\" role=\"button\" tabindex=\"0\"><div><b>${safe(g.away)} @ ${safe(g.home)}</b><div class=\"sub\">${new Date(g.date).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} ET · ${safe(g.status)}</div></div><div><div class=\"number\">${fmtSpread(g.spread,g.homeAbbr)}</div><div class=\"sub\">${g.spreadCount}/5 books</div></div><div><div class=\"number\">${fmtTotal(g.total)}</div><div class=\"sub\">${g.totalCount}/5 books</div></div><div>⌄</div></div><div class=\"detail\" id=\"detail-${i}\"><div class=\"bookrow muted\"><b>Sportsbook</b><b>Home spread</b><b>O/U</b></div>${g.books.map(b=>`<div class=\"bookrow\"><span>${safe(b.name)}</span><span>${fmtSpread(b.spread,g.homeAbbr)}</span><span>${fmtTotal(b.total)}</span></div>`).join('')}</div>`).join('');\n  document.querySelectorAll('.game').forEach(el=>{const toggle=()=>document.getElementById('detail-'+el.dataset.index).classList.toggle('open');el.addEventListener('click',toggle);el.addEventListener('keydown',e=>{if(e.key==='Enter')toggle()})});\n }catch(e){document.getElementById('notice').textContent='Unable to retrieve the schedule: '+e.message}\n}\nseasonSelect.addEventListener('change',load);weekSelect.addEventListener('change',load);document.getElementById('refresh').addEventListener('click',load);load();\n";
 const html = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NFL Consensus Odds</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,Arial;background:#0b1120;color:#f3f7ff;color-scheme:dark}
@@ -95,32 +96,12 @@ button{cursor:pointer;background:#187e74;border-color:#187e74;font-weight:700}
 <div class="metrics"><div class="metric"><span>Games</span><strong id="gameCount">—</strong></div><div class="metric"><span>Sportsbooks</span><strong>5</strong></div><div class="metric"><span>Odds updated</span><strong id="updated" style="font-size:16px">—</strong></div></div>
 <div class="notice" id="notice">Loading weekly NFL schedule…</div><section class="panel"><div class="row head"><span>Matchup</span><span>Average spread</span><span>Average O/U</span><span></span></div><div id="games"></div></section>
 <div id="message">Consensus spreads reflect the home team's point of view. Negative means the home team is favored.</div></main>
-<script>
-const seasonSelect=document.getElementById('season'),weekSelect=document.getElementById('week');
-for(let y=2024;y<=2028;y++) seasonSelect.add(new Option(y,y));
-for(let w=1;w<=18;w++) weekSelect.add(new Option('Week '+w,w));
-seasonSelect.value='2026';weekSelect.value='12';
-function fmtSpread(v,team){if(v===null)return '—';return team+' '+(v>0?'+':'')+v.toFixed(1)}
-function fmtTotal(v){return v===null?'—':v.toFixed(1)}
-function safe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){
- document.getElementById('notice').textContent='Loading NFL games and odds…';
- try{
-  const r=await fetch('/api/games?season='+seasonSelect.value+'&week='+weekSelect.value);
-  const d=await r.json();if(!r.ok)throw Error(d.error||'Unable to load games');
-  document.getElementById('gameCount').textContent=d.games.length;
-  document.getElementById('updated').textContent=d.asOf?new Date(d.asOf).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'Not linked';
-  document.getElementById('notice').textContent=!d.configured?'Schedule is live. Add ODDS_API_KEY in Render to enable sportsbook lines.':d.oddsError?d.oddsError:'Odds are snapshots and may be unavailable for completed or distant games.';
-  document.getElementById('games').innerHTML=d.games.map((g,i)=>`<div class="row game" data-index="${i}" role="button" tabindex="0"><div><b>${safe(g.away)} @ ${safe(g.home)}</b><div class="sub">${new Date(g.date).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} ET · ${safe(g.status)}</div></div><div><div class="number">${fmtSpread(g.spread,g.homeAbbr)}</div><div class="sub">${g.spreadCount}/5 books</div></div><div><div class="number">${fmtTotal(g.total)}</div><div class="sub">${g.totalCount}/5 books</div></div><div>⌄</div></div><div class="detail" id="detail-${i}"><div class="bookrow muted"><b>Sportsbook</b><b>Home spread</b><b>O/U</b></div>${g.books.map(b=>`<div class="bookrow"><span>${safe(b.name)}</span><span>${fmtSpread(b.spread,g.homeAbbr)}</span><span>${fmtTotal(b.total)}</span></div>`).join('')}</div>`).join('');
-  document.querySelectorAll('.game').forEach(el=>{const toggle=()=>document.getElementById('detail-'+el.dataset.index).classList.toggle('open');el.addEventListener('click',toggle);el.addEventListener('keydown',e=>{if(e.key==='Enter')toggle()})});
- }catch(e){document.getElementById('notice').textContent='Unable to retrieve the schedule: '+e.message}
-}
-seasonSelect.addEventListener('change',load);weekSelect.addEventListener('change',load);document.getElementById('refresh').addEventListener('click',load);load();
-</script></body></html>`;
+<script src="/app.js"></script></body></html>`;
 http.createServer(async(req,res)=>{
  const url = new URL(req.url || '/', 'http://localhost');
  const send=(code,data,type='application/json')=>{res.writeHead(code,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(typeof data==='string'?data:JSON.stringify(data));};
  if(url.pathname==='/')return send(200,html,'text/html; charset=utf-8');
+ if(url.pathname==='/app.js')return send(200,clientScript,'text/javascript; charset=utf-8');
  if(url.pathname==='/health')return send(200,{ok:true});
  if(url.pathname!=='/api/games')return send(404,{error:'Not found'});
  const season=Number(url.searchParams.get('season')||2026), week=Number(url.searchParams.get('week')||12);
